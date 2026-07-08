@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horizon Support — Help Center</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #1a56db;
+      --brand-dark: #1240a8;
+      --text: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #9ca3af;
+      --bg: #f9fafb;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--brand);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-icon svg { width: 18px; height: 18px; fill: #fff; }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .nav-links a:hover { color: var(--brand); }
+    .nav-cta {
+      background: var(--brand);
+      color: #fff !important;
+      padding: 0.45rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem !important;
+      font-weight: 600 !important;
+    }
+    .nav-cta:hover { background: var(--brand-dark); color: #fff !important; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #1a56db 0%, #1e3a8a 100%);
+      color: #fff;
+      text-align: center;
+      padding: 5rem 2rem 4rem;
+    }
+    .hero h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 1rem; }
+    .hero p  { font-size: 1.1rem; opacity: 0.85; max-width: 540px; margin: 0 auto 2rem; }
+    .search-bar {
+      display: flex;
+      max-width: 520px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .search-bar input {
+      flex: 1;
+      border: none;
+      padding: 0.85rem 1.25rem;
+      font-size: 1rem;
+      color: var(--text);
+      outline: none;
+    }
+    .search-bar button {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      padding: 0 1.4rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: background 0.15s;
+    }
+    .search-bar button:hover { background: var(--brand-dark); }
+
+    /* ── Main content ── */
+    main { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem; }
+
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    /* Category cards */
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 3.5rem;
+    }
+    .category-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .category-card:hover {
+      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+    .category-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.4rem;
+    }
+    .category-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .category-card p  { font-size: 0.875rem; color: var(--text-secondary); }
+    .article-count    { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.6rem; }
+
+    /* Popular articles */
+    .articles { margin-bottom: 3.5rem; }
+    .article-list { list-style: none; }
+    .article-list li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 0.6rem;
+    }
+    .article-list a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background 0.12s;
+      border-radius: var(--radius);
+    }
+    .article-list a:hover { background: var(--bg); }
+    .article-list a svg { flex-shrink: 0; opacity: 0.4; }
+
+    /* Contact strip */
+    .contact-strip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem;
+      text-align: center;
+    }
+    .contact-strip h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .contact-strip p  { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .contact-options  { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.3rem;
+      border-radius: 7px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1.5px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-secondary { background: #fff; color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--bg); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* ─────────────────────────────────────────────
+       GENESYS CLOUD WEB MESSENGER SNIPPET
+       ─────────────────────────────────────────── */
+    /*
+      Paste your Genesys Cloud deployment snippet
+      in the <script> block at the bottom of this
+      file, inside the clearly marked section.
+    */
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <a class="logo" href="#">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      Horizon
+    </a>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Products</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">Support</a></li>
+    </ul>
+    <div id="horizon-user-bar">
+      <span id="horizon-user-name"></span>
+      <button id="horizon-signout-btn" onclick="horizonLogout()">Sign out</button>
+    </div>
+  </nav>
+
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>How can we help?</h1>
+    <p>Search our knowledge base or reach out to our team — we're here when you need us.</p>
+    <div class="search-bar">
+      <input type="text" placeholder="Search for articles, guides, FAQs…" />
+      <button type="button">Search</button>
+    </div>
+  </section>
+
+  <!-- Main content -->
+  <main>
+
+    <!-- Browse by category -->
+    <h2 class="section-title">Browse by category</h2>
+    <div class="categories">
+      <a class="category-card" href="categories/getting-started.html">
+        <div class="category-icon" style="background:#eff6ff;">🚀</div>
+        <h3>Getting started</h3>
+        <p>Set up your account and take a first tour.</p>
+        <div class="article-count">14 articles</div>
+      </a>
+      <a class="category-card" href="categories/billing.html">
+        <div class="category-icon" style="background:#f0fdf4;">💳</div>
+        <h3>Billing &amp; plans</h3>
+        <p>Invoices, upgrades, and payment methods.</p>
+        <div class="article-count">9 articles</div>
+      </a>
+      <a class="category-card" href="categories/account-settings.html">
+        <div class="category-icon" style="background:#fff7ed;">⚙️</div>
+        <h3>Account settings</h3>
+        <p>Passwords, profile, and team management.</p>
+        <div class="article-count">11 articles</div>
+      </a>
+      <a class="category-card" href="categories/integrations.html">
+        <div class="category-icon" style="background:#fdf4ff;">🔌</div>
+        <h3>Integrations</h3>
+        <p>Connect your favourite tools and services.</p>
+        <div class="article-count">18 articles</div>
+      </a>
+    </div>
+
+    <!-- Popular articles -->
+    <section class="articles">
+      <h2 class="section-title">Popular articles</h2>
+      <ul class="article-list">
+        <li>
+          <a href="articles/reset-password.html">
+            How to reset your password
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="articles/upgrade-downgrade-plan.html">
+            Upgrading or downgrading your plan
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="articles/manage-team-members.html">
+            Adding and removing team members
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="articles/connect-crm-api.html">
+            Connecting your CRM via the API
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+        </li>
+        <li>
+          <a href="articles/understand-invoice.html">
+            Understanding your invoice and charges
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Contact strip -->
+    <div class="contact-strip">
+      <h2>Still need help?</h2>
+      <p>Our support team is available Monday–Friday, 9 am – 6 pm AEST.</p>
+      <div class="contact-options">
+        <a class="btn btn-primary" href="#">💬 Chat with us</a>
+        <a class="btn btn-secondary" href="#">📧 Send an email</a>
+        <a class="btn btn-secondary" href="#">📅 Book a call</a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    &copy; 2026 Horizon Inc. &nbsp;·&nbsp; Privacy &nbsp;·&nbsp; Terms &nbsp;·&nbsp; Status
+  </footer>
+
+
+  <!-- ============================================================
+       GENESYS CLOUD WEB MESSENGER — PASTE YOUR SNIPPET BELOW
+       ============================================================
+       1. Go to Genesys Cloud Admin → Message → Messenger Deployments
+       2. Open your deployment → copy the Javascript snippet
+       3. Replace the placeholder comment below with your snippet
+       ============================================================ -->
+
+  <!-- Auth0 SPA SDK -->
+  <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js"></script>
+  <!-- Horizon auth: loads Genesys + Auth0 integration -->
+  <script src="auth.js"></script>
+
+</body>
+</html>
