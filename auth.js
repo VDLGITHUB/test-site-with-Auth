@@ -4,9 +4,9 @@
    ============================================================ */
 
 // ── 1. Config ─────────────────────────────────────────────
-const AUTH0_DOMAIN   = 'dev-rwcjb1zxrqzhc7ka.au.auth0.com';
+const AUTH0_DOMAIN    = 'dev-rwcjb1zxrqzhc7ka.au.auth0.com';
 const AUTH0_CLIENT_ID = 'wjioQMRSP7BGjqfe22LnaGvSV4woz643';
-const REDIRECT_URI   = window.location.origin + window.location.pathname;
+const HOMEPAGE        = 'https://vdlgithub.github.io/test-site-with-Auth/';
 
 const GC_DEPLOYMENT_ID = '9bb53d7c-5a6a-40b5-bdfd-2ab2fbd7ddcf';
 const GC_ENVIRONMENT   = 'prod-apse2';
@@ -27,67 +27,10 @@ const GC_ENVIRONMENT   = 'prod-apse2';
   { environment: GC_ENVIRONMENT, deploymentId: GC_DEPLOYMENT_ID }
 );
 
-// ── 3. Inject login wall HTML ─────────────────────────────
+// ── 3. Inject styles ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
-  const wall = document.createElement('div');
-  wall.id = 'login-wall';
-  wall.innerHTML = `
-    <div class="login-wall-inner">
-      <div class="login-wall-icon">🔒</div>
-      <h2>Sign in to get support</h2>
-      <p>Please log in to access live chat and support resources.</p>
-      <button onclick="horizonLogin()" class="login-wall-btn">Sign in with Auth0</button>
-    </div>
-  `;
-  document.body.appendChild(wall);
-
-  // Inject login wall styles
   const style = document.createElement('style');
   style.textContent = `
-    #login-wall {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.65);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(3px);
-    }
-    .login-wall-inner {
-      background: #fff;
-      border-radius: 14px;
-      padding: 2.5rem 2rem;
-      text-align: center;
-      max-width: 360px;
-      width: 90%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-    }
-    .login-wall-icon { font-size: 2.5rem; margin-bottom: 1rem; }
-    .login-wall-inner h2 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-      color: #111827;
-    }
-    .login-wall-inner p {
-      color: #6b7280;
-      font-size: 0.95rem;
-      margin-bottom: 1.5rem;
-    }
-    .login-wall-btn {
-      background: #1a56db;
-      color: #fff;
-      border: none;
-      padding: 0.75rem 2rem;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      width: 100%;
-      transition: background 0.15s;
-    }
-    .login-wall-btn:hover { background: #1240a8; }
     #horizon-user-bar {
       display: none;
       align-items: center;
@@ -106,11 +49,50 @@ document.addEventListener('DOMContentLoaded', function () {
       font-weight: 500;
     }
     #horizon-signout-btn:hover { background: #f9fafb; color: #111827; }
+
+    /* Toast shown when unauthenticated user tries to open chat */
+    #chat-signin-toast {
+      display: none;
+      position: fixed;
+      bottom: 90px;
+      right: 24px;
+      background: #1e293b;
+      color: #fff;
+      padding: 0.85rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      z-index: 9999;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      align-items: center;
+      gap: 0.75rem;
+      max-width: 280px;
+    }
+    #chat-signin-toast button {
+      background: #1a56db;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #chat-signin-toast button:hover { background: #1240a8; }
   `;
   document.head.appendChild(style);
+
+  // Inject the toast element
+  const toast = document.createElement('div');
+  toast.id = 'chat-signin-toast';
+  toast.innerHTML = `
+    <span>Sign in to start a live chat</span>
+    <button onclick="horizonLogin()">Sign in</button>
+  `;
+  document.body.appendChild(toast);
 });
 
-// ── 4. Auth0 helpers (using Auth0 SPA SDK) ────────────────
+// ── 4. Auth0 logic ────────────────────────────────────────
 let auth0Client = null;
 
 async function initAuth0() {
@@ -118,15 +100,22 @@ async function initAuth0() {
     domain: AUTH0_DOMAIN,
     clientId: AUTH0_CLIENT_ID,
     authorizationParams: {
-      redirect_uri: REDIRECT_URI,
-      audience: 'https://' + AUTH0_DOMAIN + '/api/v2/'
+      redirect_uri: HOMEPAGE
     }
   });
 
-  // Handle redirect back from Auth0 after login
+  // Back from Auth0 login
   if (window.location.search.includes('code=') && window.location.search.includes('state=')) {
     await auth0Client.handleRedirectCallback();
-    // Clean the URL so the code/state params don't persist
+
+    const returnTo = localStorage.getItem('auth0_return_to');
+    localStorage.removeItem('auth0_return_to');
+
+    if (returnTo && returnTo !== window.location.href) {
+      window.location.replace(returnTo);
+      return;
+    }
+
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
@@ -135,39 +124,41 @@ async function initAuth0() {
   if (isAuthenticated) {
     await onAuthenticated();
   } else {
-    showLoginWall();
+    // Not logged in — show Sign in button, hide widget
+    showSignInButton();
+    Genesys('command', 'Messenger.close');
+
+    // If user tries to open the Genesys widget without being
+    // logged in, intercept and show the toast instead
+    Genesys('subscribe', 'Messenger.opened', function () {
+      Genesys('command', 'Messenger.close');
+      showChatToast();
+    });
   }
 }
 
 async function onAuthenticated() {
-  // Get the ID token to pass to Genesys
   const claims = await auth0Client.getIdTokenClaims();
-  const idToken = claims.__raw; // raw JWT string
+  const idToken = claims.__raw;
 
-  // Get user profile for the nav bar
   const user = await auth0Client.getUser();
 
-  // Pass token to Genesys Web Messenger
   Genesys('command', 'Auth.setToken', { token: idToken });
 
-  // Hide login wall, show user in nav
-  hideLoginWall();
   showUserBar(user);
 }
 
-function showLoginWall() {
-  const wall = document.getElementById('login-wall');
-  if (wall) wall.style.display = 'flex';
-  // Also hide the Genesys widget until authenticated
-  Genesys('command', 'Messenger.close');
-}
-
-function hideLoginWall() {
-  const wall = document.getElementById('login-wall');
-  if (wall) wall.style.display = 'none';
+// ── 5. UI helpers ─────────────────────────────────────────
+function showSignInButton() {
+  const btn = document.getElementById('horizon-signin-btn');
+  if (btn) btn.style.display = 'inline-flex';
+  const bar = document.getElementById('horizon-user-bar');
+  if (bar) bar.style.display = 'none';
 }
 
 function showUserBar(user) {
+  const btn = document.getElementById('horizon-signin-btn');
+  if (btn) btn.style.display = 'none';
   const bar = document.getElementById('horizon-user-bar');
   if (!bar) return;
   const nameEl = document.getElementById('horizon-user-name');
@@ -175,16 +166,25 @@ function showUserBar(user) {
   bar.style.display = 'flex';
 }
 
-// ── 5. Public functions (called from buttons) ─────────────
+function showChatToast() {
+  const toast = document.getElementById('chat-signin-toast');
+  if (!toast) return;
+  toast.style.display = 'flex';
+  // Auto-hide after 6 seconds
+  setTimeout(() => { toast.style.display = 'none'; }, 6000);
+}
+
+// ── 6. Public functions ───────────────────────────────────
 function horizonLogin() {
+  localStorage.setItem('auth0_return_to', window.location.href);
   auth0Client.loginWithRedirect();
 }
 
 async function horizonLogout() {
   await auth0Client.logout({
-    logoutParams: { returnTo: REDIRECT_URI }
+    logoutParams: { returnTo: HOMEPAGE }
   });
 }
 
-// ── 6. Kick everything off ────────────────────────────────
+// ── 7. Kick everything off ────────────────────────────────
 window.addEventListener('load', initAuth0);

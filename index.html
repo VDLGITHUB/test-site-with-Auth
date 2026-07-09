@@ -249,9 +249,12 @@
       <li><a href="#">Pricing</a></li>
       <li><a href="#">Support</a></li>
     </ul>
-    <div id="horizon-user-bar">
-      <span id="horizon-user-name"></span>
-      <button id="horizon-signout-btn" onclick="horizonLogout()">Sign out</button>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <button id="horizon-signin-btn" onclick="horizonLogin()" class="nav-cta" style="display:none; border:none; cursor:pointer;">Sign in</button>
+      <div id="horizon-user-bar">
+        <span id="horizon-user-name"></span>
+        <button id="horizon-signout-btn" onclick="horizonLogout()">Sign out</button>
+      </div>
     </div>
   </nav>
 
