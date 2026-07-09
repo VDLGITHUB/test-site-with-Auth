@@ -10,42 +10,21 @@ const HOMEPAGE        = 'https://vdlgithub.github.io/test-site-with-Auth/';
 const GC_DEPLOYMENT_ID = '9bb53d7c-5a6a-40b5-bdfd-2ab2fbd7ddcf';
 const GC_ENVIRONMENT   = 'prod-apse2';
 
-// Stores the token once Auth0 is ready — Genesys will request it via callback
-let _idToken = null;
-
 // ── 2. Inject Genesys bootstrap ───────────────────────────
-// Genesys authenticated messaging requires the token to be provided
-// via a callback registered BEFORE the bootstrap loads.
-// We register the callback first, then inject the script.
-window.Genesys = window.Genesys || function () {
-  (window.Genesys.q = window.Genesys.q || []).push(arguments);
-};
-window.Genesys.t = 1 * new Date();
-window.Genesys.c = {
-  environment: GC_ENVIRONMENT,
-  deploymentId: GC_DEPLOYMENT_ID
-};
-
-// Register the auth token callback BEFORE bootstrap loads
-// Genesys calls this function when it needs a fresh token
-Genesys('registerPlugin', 'Auth', function (Auth) {
-  Auth.setConfig({
-    tokenProvider: {
-      getToken: function () {
-        return Promise.resolve(_idToken);
-      }
-    }
-  });
-});
-
-// Now inject the bootstrap script
-(function () {
-  const ys = document.createElement('script');
+(function (g, e, n, es, ys) {
+  g['_genesysJs'] = e;
+  g[e] = g[e] || function () { (g[e].q = g[e].q || []).push(arguments); };
+  g[e].t = 1 * new Date();
+  g[e].c = es;
+  ys = document.createElement('script');
   ys.async = 1;
-  ys.src = 'https://apps.mypurecloud.com.au/genesys-bootstrap/genesys.min.js';
+  ys.src = n;
   ys.charset = 'utf-8';
   document.head.appendChild(ys);
-})();
+})(window, 'Genesys',
+  'https://apps.mypurecloud.com.au/genesys-bootstrap/genesys.min.js',
+  { environment: GC_ENVIRONMENT, deploymentId: GC_DEPLOYMENT_ID }
+);
 
 // ── 3. Inject styles ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
@@ -141,13 +120,21 @@ async function initAuth0() {
 
   if (isAuthenticated) {
     const claims = await auth0Client.getIdTokenClaims();
-    _idToken = claims.__raw; // store token so Genesys tokenProvider can return it
-
+    const idToken = claims.__raw;
     const user = await auth0Client.getUser();
+
+    // Show user bar immediately
     showUserBar(user);
 
-    // Signal to Genesys that a token is now available
-    Genesys('command', 'Auth.setToken', { token: _idToken });
+    // Subscribe to Genesys ready event and set token then
+    // This fires once Genesys is fully initialised
+    Genesys('subscribe', 'Messenger.ready', function () {
+      console.log('Genesys Messenger ready — setting auth token');
+      Genesys('command', 'Auth.setToken', { token: idToken },
+        function () { console.log('Auth.setToken success ✅'); },
+        function (err) { console.error('Auth.setToken failed ❌', err); }
+      );
+    });
 
   } else {
     showSignInButton();
