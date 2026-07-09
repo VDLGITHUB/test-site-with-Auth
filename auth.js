@@ -49,8 +49,6 @@ document.addEventListener('DOMContentLoaded', function () {
       font-weight: 500;
     }
     #horizon-signout-btn:hover { background: #f9fafb; color: #111827; }
-
-    /* Toast shown when unauthenticated user tries to open chat */
     #chat-signin-toast {
       display: none;
       position: fixed;
@@ -82,7 +80,6 @@ document.addEventListener('DOMContentLoaded', function () {
   `;
   document.head.appendChild(style);
 
-  // Inject the toast element
   const toast = document.createElement('div');
   toast.id = 'chat-signin-toast';
   toast.innerHTML = `
@@ -122,14 +119,17 @@ async function initAuth0() {
   const isAuthenticated = await auth0Client.isAuthenticated();
 
   if (isAuthenticated) {
-    await onAuthenticated();
-  } else {
-    // Not logged in — show Sign in button, hide widget
-    showSignInButton();
-    Genesys('command', 'Messenger.close');
+    // Show user bar immediately — don't wait for Genesys
+    const user = await auth0Client.getUser();
+    showUserBar(user);
 
-    // If user tries to open the Genesys widget without being
-    // logged in, intercept and show the toast instead
+    // Pass token to Genesys once it's ready
+    const claims = await auth0Client.getIdTokenClaims();
+    const idToken = claims.__raw;
+    setGenesysToken(idToken);
+  } else {
+    showSignInButton();
+    // Intercept widget open attempts for unauthenticated users
     Genesys('subscribe', 'Messenger.opened', function () {
       Genesys('command', 'Messenger.close');
       showChatToast();
@@ -137,15 +137,19 @@ async function initAuth0() {
   }
 }
 
-async function onAuthenticated() {
-  const claims = await auth0Client.getIdTokenClaims();
-  const idToken = claims.__raw;
+// Wait for Genesys to be ready then set the token
+function setGenesysToken(idToken) {
+  // Genesys may not be fully initialised yet — subscribe to ready event
+  Genesys('subscribe', 'Messenger.ready', function () {
+    Genesys('command', 'Auth.setToken', { token: idToken });
+  });
 
-  const user = await auth0Client.getUser();
-
-  Genesys('command', 'Auth.setToken', { token: idToken });
-
-  showUserBar(user);
+  // Also try immediately in case it's already ready
+  try {
+    Genesys('command', 'Auth.setToken', { token: idToken });
+  } catch (e) {
+    // Not ready yet — the subscribe above will handle it
+  }
 }
 
 // ── 5. UI helpers ─────────────────────────────────────────
@@ -170,7 +174,6 @@ function showChatToast() {
   const toast = document.getElementById('chat-signin-toast');
   if (!toast) return;
   toast.style.display = 'flex';
-  // Auto-hide after 6 seconds
   setTimeout(() => { toast.style.display = 'none'; }, 6000);
 }
 
