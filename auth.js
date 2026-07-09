@@ -23,7 +23,7 @@ const GC_ENVIRONMENT   = 'prod-apse2';
   ys.charset = 'utf-8';
   document.head.appendChild(ys);
 })(window, 'Genesys',
-  'https://apps.' + GC_ENVIRONMENT + '.pure.cloud/genesys-bootstrap/genesys.min.js',
+  'https://apps.mypurecloud.com.au/genesys-bootstrap/genesys.min.js',
   { environment: GC_ENVIRONMENT, deploymentId: GC_DEPLOYMENT_ID }
 );
 
