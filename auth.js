@@ -126,15 +126,8 @@ async function initAuth0() {
     // Show user bar immediately
     showUserBar(user);
 
-    // Subscribe to Genesys ready event and set token then
-    // This fires once Genesys is fully initialised
-    Genesys('subscribe', 'Messenger.ready', function () {
-      console.log('Genesys Messenger ready — setting auth token');
-      Genesys('command', 'Auth.setToken', { token: idToken },
-        function () { console.log('Auth.setToken success ✅'); },
-        function (err) { console.error('Auth.setToken failed ❌', err); }
-      );
-    });
+    // Keep trying to set the token every 500ms until Genesys accepts it
+    setTokenWithRetry(idToken);
 
   } else {
     showSignInButton();
@@ -143,6 +136,29 @@ async function initAuth0() {
       showChatToast();
     });
   }
+}
+
+// Retry setting token until Genesys is ready to accept it
+function setTokenWithRetry(idToken, attempts) {
+  attempts = attempts || 0;
+  if (attempts > 20) {
+    console.error('Genesys Auth.setToken failed after 20 attempts ❌');
+    return;
+  }
+
+  console.log('Attempting Auth.setToken, attempt', attempts + 1);
+
+  Genesys('command', 'Auth.setToken', { token: idToken },
+    function () {
+      console.log('Auth.setToken success ✅ on attempt', attempts + 1);
+    },
+    function (err) {
+      console.warn('Auth.setToken not ready yet, retrying...', err);
+      setTimeout(function () {
+        setTokenWithRetry(idToken, attempts + 1);
+      }, 500);
+    }
+  );
 }
 
 // ── 5. UI helpers ─────────────────────────────────────────
