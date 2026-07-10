@@ -120,15 +120,15 @@ async function initAuth0() {
   const isAuthenticated = await auth0Client.isAuthenticated();
 
   if (isAuthenticated) {
-    const claims = await auth0Client.getIdTokenClaims();
-    const idToken = claims.__raw;
     const user = await auth0Client.getUser();
 
     // Show user bar immediately
     showUserBar(user);
 
-    // Keep trying to set the token every 500ms until Genesys accepts it
-    setTokenWithRetry(idToken);
+    // Get Access Token (not ID token) — Genesys validates against
+    // the https://genesys-messenger audience which is only in the Access Token
+    const accessToken = await auth0Client.getTokenSilently();
+    setTokenWithRetry(accessToken);
 
   } else {
     showSignInButton();
