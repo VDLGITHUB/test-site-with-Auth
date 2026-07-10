@@ -97,7 +97,8 @@ async function initAuth0() {
     clientId: AUTH0_CLIENT_ID,
     authorizationParams: {
       redirect_uri: HOMEPAGE,
-      scope: 'openid profile email'
+      scope: 'openid profile email',
+      audience: 'https://genesys-messenger'
     }
   });
 
