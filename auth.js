@@ -1,6 +1,6 @@
 /* ============================================================
    auth.js — Shared Auth0 + Genesys Web Messenger integration
-   Using AuthProvider plugin pattern (correct Genesys approach)
+   Using AuthProvider with Implicit Flow (id_token in URL hash)
    ============================================================ */
 
 // ── 1. Config ─────────────────────────────────────────────
@@ -30,29 +30,50 @@ const AUTH0_LOGOUT_URL = 'https://' + AUTH0_DOMAIN + '/v2/logout';
   { environment: GC_ENVIRONMENT, deploymentId: GC_DEPLOYMENT_ID }
 );
 
-// ── 3. AuthProvider plugin ────────────────────────────────
-// Genesys calls getAuthCode when a chat session needs authentication
+// ── 3. AuthProvider plugin (Implicit Flow) ────────────────
+// Genesys calls getAuthCode when it needs to authenticate
+// We use implicit flow: Auth0 returns id_token in the URL hash
+// No server-side code exchange needed
 Genesys('registerPlugin', 'AuthProvider', function (AuthProvider) {
 
   AuthProvider.registerCommand('getAuthCode', function (e) {
+    // Check URL hash for id_token (implicit flow response)
+    const hash = window.location.hash;
+    const hashParams = new URLSearchParams(hash.replace('#', ''));
+    const idToken = hashParams.get('id_token');
+
+    // Also check query string for code (in case of code flow fallback)
     const urlParams = new URLSearchParams(window.location.search);
     const authCode  = urlParams.get('code');
 
-    if (authCode) {
-      // We have a code from Auth0 — give it to Genesys
-      // Important: do NOT clean the URL here — let Genesys read it first
+    if (idToken) {
+      console.log('AuthProvider: providing id_token to Genesys (implicit flow) ✅');
+      e.resolve({
+        authCode: idToken,
+        redirectUri: HOMEPAGE
+      });
+
+      // Clean up hash and update UI after token is handed to Genesys
+      setTimeout(function () {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showUserBar({});
+        const returnTo = localStorage.getItem('auth0_return_to');
+        localStorage.removeItem('auth0_return_to');
+        if (returnTo && returnTo !== HOMEPAGE && !returnTo.includes('#')) {
+          window.location.replace(returnTo);
+        }
+      }, 500);
+
+    } else if (authCode) {
       console.log('AuthProvider: providing auth code to Genesys ✅');
       e.resolve({
         authCode: authCode,
         redirectUri: HOMEPAGE
       });
 
-      // Clean URL and update UI after handing code to Genesys
       setTimeout(function () {
         window.history.replaceState({}, document.title, window.location.pathname);
         showUserBar({});
-
-        // Return to original page if they were on a subpage
         const returnTo = localStorage.getItem('auth0_return_to');
         localStorage.removeItem('auth0_return_to');
         if (returnTo && returnTo !== HOMEPAGE && !returnTo.includes('?code=')) {
@@ -61,11 +82,8 @@ Genesys('registerPlugin', 'AuthProvider', function (AuthProvider) {
       }, 500);
 
     } else {
-      // No code yet — but DON'T redirect automatically
-      // Only redirect when the user explicitly tries to chat
-      // Reject so Genesys knows auth isn't available yet
-      console.log('AuthProvider: no auth code available, rejecting');
-      e.reject('No auth code available — user must sign in first');
+      console.log('AuthProvider: no token or code found, rejecting');
+      e.reject('No auth token available — user must sign in first');
     }
   });
 
@@ -107,22 +125,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // ── 5. Page load ──────────────────────────────────────────
 window.addEventListener('load', function () {
+  const hash = window.location.hash;
+  const hashParams = new URLSearchParams(hash.replace('#', ''));
+  const idToken = hashParams.get('id_token');
   const urlParams = new URLSearchParams(window.location.search);
-  const authCode  = urlParams.get('code');
+  const authCode = urlParams.get('code');
 
-  if (authCode) {
-    // Returned from Auth0 — show user bar immediately
-    // URL and returnTo are cleaned up inside AuthProvider.getAuthCode above
+  if (idToken || authCode) {
+    // Returned from Auth0 — show user bar
     showUserBar({});
   } else {
-    // Normal page load — show sign in button
     showSignInButton();
-
-    // If unauthenticated user tries to open the widget, show toast instead
     Genesys('subscribe', 'Messenger.opened', function () {
-      // Check if we have a code — if not, close and show toast
-      const params = new URLSearchParams(window.location.search);
-      if (!params.get('code')) {
+      const h = window.location.hash;
+      const p = new URLSearchParams(window.location.search);
+      if (!new URLSearchParams(h.replace('#', '')).get('id_token') && !p.get('code')) {
         Genesys('command', 'Messenger.close');
         showChatToast();
       }
@@ -155,19 +172,24 @@ function showChatToast() {
 
 // ── 7. Public functions ───────────────────────────────────
 function horizonLogin() {
-  // Save current page to return to after login
   localStorage.setItem('auth0_return_to', window.location.href);
+  // Implicit flow: response_type=id_token returns token directly in URL hash
+  // No server-side code exchange — Genesys uses the token directly
+  const nonce = Math.random().toString(36).substring(2);
+  sessionStorage.setItem('auth0_nonce', nonce);
   const loginUrl = AUTH0_AUTHORIZE
     + '?client_id=' + AUTH0_CLIENT_ID
-    + '&response_type=code'
+    + '&response_type=id_token'
     + '&redirect_uri=' + encodeURIComponent(HOMEPAGE)
     + '&scope=' + encodeURIComponent('openid profile email')
-    + '&audience=' + encodeURIComponent('https://genesys-messenger');
+    + '&nonce=' + nonce
+    + '&response_mode=fragment';
   window.location.assign(loginUrl);
 }
 
 function horizonLogout() {
   localStorage.removeItem('auth0_return_to');
+  sessionStorage.removeItem('auth0_nonce');
   window.history.replaceState({}, document.title, window.location.pathname);
   const logoutUrl = AUTH0_LOGOUT_URL
     + '?client_id=' + AUTH0_CLIENT_ID
