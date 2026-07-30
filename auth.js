@@ -31,7 +31,7 @@ const AUTH0_LOGOUT_URL = 'https://' + AUTH0_DOMAIN + '/v2/logout';
 );
 
 // ── 3. AuthProvider plugin ────────────────────────────────
-// Genesys calls getAuthCode when it needs to authenticate a session
+// Genesys calls getAuthCode when a chat session needs authentication
 Genesys('registerPlugin', 'AuthProvider', function (AuthProvider) {
 
   AuthProvider.registerCommand('getAuthCode', function (e) {
@@ -39,21 +39,33 @@ Genesys('registerPlugin', 'AuthProvider', function (AuthProvider) {
     const authCode  = urlParams.get('code');
 
     if (authCode) {
-      console.log('AuthProvider: providing auth code to Genesys');
+      // We have a code from Auth0 — give it to Genesys
+      // Important: do NOT clean the URL here — let Genesys read it first
+      console.log('AuthProvider: providing auth code to Genesys ✅');
       e.resolve({
         authCode: authCode,
         redirectUri: HOMEPAGE
       });
+
+      // Clean URL and update UI after handing code to Genesys
+      setTimeout(function () {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showUserBar({});
+
+        // Return to original page if they were on a subpage
+        const returnTo = localStorage.getItem('auth0_return_to');
+        localStorage.removeItem('auth0_return_to');
+        if (returnTo && returnTo !== HOMEPAGE && !returnTo.includes('?code=')) {
+          window.location.replace(returnTo);
+        }
+      }, 500);
+
     } else {
-      console.log('AuthProvider: no code, redirecting to Auth0');
-      localStorage.setItem('auth0_return_to', window.location.href);
-      const loginUrl = AUTH0_AUTHORIZE
-        + '?client_id=' + AUTH0_CLIENT_ID
-        + '&response_type=code'
-        + '&redirect_uri=' + encodeURIComponent(HOMEPAGE)
-        + '&scope=' + encodeURIComponent('openid profile email')
-        + '&audience=' + encodeURIComponent('https://genesys-messenger');
-      window.location.assign(loginUrl);
+      // No code yet — but DON'T redirect automatically
+      // Only redirect when the user explicitly tries to chat
+      // Reject so Genesys knows auth isn't available yet
+      console.log('AuthProvider: no auth code available, rejecting');
+      e.reject('No auth code available — user must sign in first');
     }
   });
 
@@ -99,17 +111,22 @@ window.addEventListener('load', function () {
   const authCode  = urlParams.get('code');
 
   if (authCode) {
-    // Returned from Auth0 with a code — show user bar
+    // Returned from Auth0 — show user bar immediately
+    // URL and returnTo are cleaned up inside AuthProvider.getAuthCode above
     showUserBar({});
-    window.history.replaceState({}, document.title, window.location.pathname);
-
-    const returnTo = localStorage.getItem('auth0_return_to');
-    localStorage.removeItem('auth0_return_to');
-    if (returnTo && !returnTo.includes('?code=') && returnTo !== window.location.href) {
-      window.location.replace(returnTo);
-    }
   } else {
+    // Normal page load — show sign in button
     showSignInButton();
+
+    // If unauthenticated user tries to open the widget, show toast instead
+    Genesys('subscribe', 'Messenger.opened', function () {
+      // Check if we have a code — if not, close and show toast
+      const params = new URLSearchParams(window.location.search);
+      if (!params.get('code')) {
+        Genesys('command', 'Messenger.close');
+        showChatToast();
+      }
+    });
   }
 });
 
@@ -138,6 +155,7 @@ function showChatToast() {
 
 // ── 7. Public functions ───────────────────────────────────
 function horizonLogin() {
+  // Save current page to return to after login
   localStorage.setItem('auth0_return_to', window.location.href);
   const loginUrl = AUTH0_AUTHORIZE
     + '?client_id=' + AUTH0_CLIENT_ID
